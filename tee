@@ -1,0 +1,11 @@
+#!/bin/bash
+
+Output=$(aws fsx describe-file-systems --query "FileSystems[*].{Storagecapacity:StorageCapacity,FS_ID:FileSystemId,Type:FileSystemType,Throughput:ThroughputCapacity, Mount:LustreConfiguration.MountName}" --output table)
+
+echo "
+
+=============TEESTING PLEASE IGNORE================
+
+$output
+
+" | $(mail -s "TEST -EMAIL Account ID  ServiceLimit for FSX has been reached threshold%" -r ranganath.bs@nxp.com ranganath.bs@nxp.com )
