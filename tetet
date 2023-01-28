@@ -1,0 +1,14 @@
+aws cloudwatch put-metric-alarm \
+--alarm-name 'IEAWSC103-csi-auto-grow-fs-04d5c6e32746274c8-storagecapacity-alarm' \
+--alarm-description 'Alarm Raised for Used Storage Capacity Threshold in Percentage' \
+--actions-enabled \
+--alarm-actions 'arn:aws:sns:eu-west-1:079149401785:IEAWSC103-csi-auto-grow-fs-04d5c6e32746274c8-SCSNSTopic-F9VGBDQQEVS' \
+--metric-name 'Used-Storage-Capacity-Percent' \
+--namespace 'FSx-Custom' \
+--statistic 'Sum' \
+--dimensions '[{"Name":"FileSystemId","Value":"fs-04d5c6e32746274c8"}]' \
+--period 300 \
+--evaluation-periods 1 \
+--datapoints-to-alarm 1 \
+--threshold 80 \
+--comparison-operator 'GreaterThanThreshold'
