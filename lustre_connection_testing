@@ -1,0 +1,62 @@
+#!/bin/bash
+
+
+#This script monitord the max_obd_devices on a HPC systems and put the metrics to cloudwatch
+#send the data to cloudwatch, every time it runs.Now you can track it in the graph. <<======== ????
+#send an email to HPC team <<==== ????
+
+PATH=/bin:/usr/local/bin
+export PATH
+#for mumbai export APAC proxy ?
+
+TIMESTAMP=`date +%Y%m%d-%H%M%S`
+log=/tmp/usage.${TIMESTAMP}.LOG
+
+mkdir -p ${archives}
+echo "${date} Running ${0} from ${HOSTNAME}" >> ${log}
+
+#===============================================================================================================================
+# #Declare E-mail variables.
+#===============================================================================================================================
+
+subject="monitoring for the Lustre 8192 connection limit"
+from="csi_storage@nxp.com"
+to="ranganath.bs@nxp.com" #cc="nxp.com"?
+
+
+TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"`
+INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id -H "X-aws-ec2-metadata-token: $TOKEN" &&echo)
+CONN=$(lctl get_param -n devices | wc -l)
+HOSTNAME=$(hostname)
+
+TIMESTAMP=`date +%Y%m%d-%H%M%S`
+log=/tmp/$HOSTNAME.${TIMESTAMP}.LOG 
+
+#aws cloudwatch put-metric-data --metric-name "Lustre_active_connections" --unit Count --value "$CONN" --dimensions InstanceId=$INSTANCE_ID --namespace
+
+if [ $CONN -gt 100 ]; then
+
+echo "
+
+Hi HPC Team,
+
+Current MAX_OBD_DEVICE lustre connections have croseed the defined threshold. Restart of autofs will trigger after 15 minutes. 
+
+1. Instance_id = $INSTANCE_ID
+
+2. Hostname = $HOSTNAME
+
+3. Active connections = $CONN
+
+Regards,
+XXX " >> Body_ontap
+
+cat Body_ontap | $(mail -s "$subject- $AccountID"  -r "$from" "$to" )
+
+#send mail to HPC team and notify them the autofs will trigger after 15 minutes ?
+/bin/bash -c "sleep 900;/bin/systemctl restart autofs.service"
+
+rm Body_lustre
+fi
+
+
