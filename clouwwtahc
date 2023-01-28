@@ -1,0 +1,19 @@
+cat mount.sh
+#!/bin/bash
+
+#****************************************************************
+#Description: captures the filesystems info every 60 seconds  **
+#****************************************************************
+
+aws fsx describe-file-systems --query "FileSystems[*].{Name:Tags[?Key=='Name']|[0].Value, Storagecapacity:StorageCapacity,FS_ID:FileSystemId,Type:FileSystemType, Mount:LustreConfiguration.MountName, Throughput:LustreConfiguration.PerUnitStorageThroughput, Maintainancewindow:LustreConfiguration.WeeklyMaintenanceStartTime}" --output table | tail -n +6 | head -n -1 >>fsxinfo
+
+
+path=/root/fsxinfo
+
+#sleep 300 #&& #rm -rf $path
+
+#Delete log stream
+#aws logs delete-log-stream --log-group-name /fsx/mounts --log-stream-name i-0ed84fc7d491bf6f5
+
+#Restart cloudwatch agent
+#sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/config.json
