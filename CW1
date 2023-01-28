@@ -1,0 +1,24 @@
+#!/bin/bash
+
+start_time=$(date --utc -d "24 hours ago" '+%Y-%m-%dT%H:%M:%S')
+#start_time=$(date --utc -d '1 hour ago' '+%Y-%m-%dT%H:%M:%S')
+now=$(date '+%Y-%m-%dT%H:%M:%S')
+
+aws fsx describe-file-systems --query "FileSystems[*].[FileSystemId]" --output text >>cwop
+
+for i in `cat cwop`
+do
+echo $i >>cw_results.txt
+
+aws --output table cloudwatch get-metric-statistics --namespace AWS/FSx \
+    --metric-name PhysicalDiskUsage --statistics Sum  --period 3600 \
+    --dimensions Name="FileSystemId,Value=${i}" \
+    --start-time $start_time --end-time $now  >>cw_results.txt
+
+done
+
+
+#aws --output json cloudwatch get-metric-statistics --namespace AWS/FSx \
+#    --metric-name PhysicalDiskUsage --statistics Sum  --period 3600 \
+#    --dimensions Name=FileSystemId,Value=fs-06922d7e468fda8bf \
+#    --start-time $start_time --end-time $now --output table
