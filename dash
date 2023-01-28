@@ -1,0 +1,40 @@
+#!/bin/bash
+
+df -Th |grep -E 'lustre|/mnt/' | grep -i "/mnt/fsxl-filesystems" |awk '{print$7}'  >>mounted
+for i in `cat mounted`
+
+do
+
+       fs_id=$(df -Th $i |grep -E 'lustre|/mnt/' |awk '{print$7}' |cut -b 23- )
+        fs_name=$(aws fsx describe-file-systems --file-system-ids $fs_id --query "FileSystems[*].{Name:Tags[?Key=='Name']|[0].Value}" --output text)
+        projects_list=$(ls -l $i | grep ^d  |wc -l)
+        OST=$(lfs df -h $i |grep OST |wc -l)
+        disc_info=$(df -Th $i |grep -E 'lustre' | awk '{print $7,$1,$3,$4,$5,$6 }' |sed 's|[,:_]||g' |cut -b 23- |cut -f 5- | column -t -s " " )
+        echo -e "$disc_info $projects_list $OST $fs_name" >> output.txt
+cat <<< "$output.txt" > "output11111111111.txt | column -t -s " ""
+
+done
+
+#cat output.txt | column -t -s " "
+[root@invw102-storage-automation-01 dash]#
+[root@invw102-storage-automation-01 dash]#
+[root@invw102-storage-automation-01 dash]# cat fs_dash.sh
+#!/bin/bash
+
+df -Th |grep -E 'lustre|/mnt/' | grep -i "/mnt/fsxl-filesystems" |awk '{print$7}'  >>filesystems_ids
+for i in `cat filesystems_ids`
+
+do
+
+fs_id=$(df -Th $i |grep -E 'lustre|/mnt/' |awk '{print$7}' |cut -b 23- )
+fs_name=$(aws fsx describe-file-systems --file-system-ids $fs_id --query "FileSystems[*].{Name:Tags[?Key=='Name']|[0].Value}" --output text)
+projects_list=$(ls -l $i | grep ^d  |wc -l)
+OST=$(lfs df -h $i |grep OST |wc -l)
+#disc_info=$(df -Th $i | awk '{print $7,$1,$3,$4,$5,$6,(tag=$fs_name;$tag)}' |sed 's|[,:_]||g' |cut -b 23- |cut -f 5- | column -t -s " " )
+
+disc_info=$(df -Th $i | awk '{print $7,$1,$3,$4,$5,$6}' |sed 's|[,:_]||g' |cut -b 23- |cut -f 5- | column -t -s " " )
+echo -e "$disc_info $projects_list $OST $fs_name"  >>output.txt
+
+done
+
+#cat output.txt | column -t -s " "
