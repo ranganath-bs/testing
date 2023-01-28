@@ -1,0 +1,5 @@
+#!/bin/bash
+
+LUSTRE_CONN=$(sudo lctl get_param -n devices | awk 'END { print $1 }')
+EC2_INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+aws cloudwatch put-metric-data --namespace "Lustre-Custom" --metric-name LustreConnections --dimensions Instance=$EC2_INSTANCE_ID --value $LUSTRE_CONN
