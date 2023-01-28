@@ -1,5 +1,8 @@
 #!/bin/bash
 
+send an alarm to cloudwatch ?
+Just an email is enough ?
+send through SSM ?
 
 #This script monitord the max_obd_devices on a HPC systems and put the metrics to cloudwatch
 #send the data to cloudwatch, every time it runs.Now you can track it in the graph. <<======== ????
@@ -60,3 +63,8 @@ rm Body_lustre
 fi
 
 
+aws ssm send-command \
+    --instance-ids $instanceid \
+    --document-name "AWS-RunShellScript" \
+    --parameters commands='["??????????"]' \
+    --output text
