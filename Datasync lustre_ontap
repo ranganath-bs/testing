@@ -1,0 +1,103 @@
+#!/bin/bash
+
+export REGION="us-west-2"
+export ACCOUNT="079149401785"
+export SGID="sg-0fbe66212c0784c20"
+
+
+echo -e "\n\n
+#########################################################################################################################################
+#                                                                                                                                       #
+#                      IMPORTANT: This script is developed only for migration b/w Amazon FSx for NetApp ONTAP file systems to lustre FS #
+#                                                                                                                                       #
+#                             Please verify the below parameters before proceding with script REGION, ACCOUNT and SGID                  #
+#                                                                                   #
+#                                                       REGION= $REGION                                                                 #
+#                                                       ACCOUNT= $ACCOUNT                                                               #
+#                                                       SGID= $SGID                                                             #
+#                                                                                                                                       #
+#########################################################################################################################################"
+
+###############################################################################
+##1. Gather SRC_LOCATION_ID#
+###############################################################################
+
+echo -e "\n\n\n"
+
+echo -e "1. Do we need to create a source location ID (Y/N) \n"
+read Q_SRC_LOC_ID
+
+if [[ "${Q_SRC_LOC_ID}" = "Y" || "${Q_SRC_LOC_ID}" = "y" ]]; then
+    echo -e "\n2. Please provide the Source SVM ID \n"
+    read SRC_SVMID
+        echo -e "\n3. Please Provide the source junction path followed by the directory path that need to be transferrred (Ex: /etx/q/users/nxf81472)\n"
+        read SRC_VOLUME
+    SRC_ARN=$( aws fsx describe-storage-virtual-machines --storage-virtual-machine-ids ${SRC_SVMID} | grep ResourceARN | awk '{print $2}' | sed 's/"//g' | sed 's/,//' )
+    SRC_LOCATION_ID=$( aws datasync create-location-fsx-ontap --storage-virtual-machine-arn ${SRC_ARN} --security-group-arns arn:aws:ec2:${REGION}:${ACCOUNT}:security-group/${SGID} --protocol NFS={} --subdirectory=${SRC_VOLUME} | grep LocationArn | awk '{print $2}' | sed 's/"//g' )
+
+    echo -e "\nSRC_LOCATION_ID = ${SRC_LOCATION_ID}"
+else
+    echo -e "\nThe source location ID has apparently already been created previously\n"
+    echo -e "1a. Please provide the SRC_LOCATION_ID \n"
+    read SRC_LOCATION_ID
+fi
+
+###############################################################################
+##2. Gather DST_LOCATION_ID
+###############################################################################
+
+echo -e "\n4. Do we need to create a destination location ID (Y/N) \n"
+read Q_DST_LOC_ID
+
+if [[ "${Q_DST_LOC_ID}" = "Y" || "${Q_DST_LOC_ID}" = "y" ]]; then
+    echo -e "\n5. Please provide the Destination Filesystem ID \n"
+    read DST_FSID
+
+echo -e "\n3. Please Provide the destination path (Ex: /etx/users/nxf81472)\n"
+        read DST_DIR
+
+    DST_ARN=$( aws fsx describe-file-systems --file-system-id ${DST_FSID} | grep ResourceARN | awk '{print $2}' | sed 's/"//g' | sed 's/,//' )
+    DST_LOCATION_ID=$( aws datasync create-location-fsx-lustre --fsx-filesystem-arn ${DST_ARN} --security-group-arns arn:aws:ec2:${REGION}:${ACCOUNT}:security-group/${SGID} --subdirectory=${DST_DIR}| grep LocationArn | awk '{print $2}' | sed 's/"//g' )
+    echo "DST_LOCATION_ID = ${DST_LOCATION_ID}"
+else
+    echo "The source location ID has apparently already been created previously"
+    echo "Please provide the DST_LOCATION_ID"
+    read DST_LOCATION_ID
+fi
+
+echo
+
+###############################################################################
+## 3. Create a log location
+###############################################################################
+
+aws logs create-log-group --log-group-name "/datasync/${DST_DIR}/"
+
+
+###############################################################################
+## 4. Create a task
+###############################################################################
+
+#Not able to create log in create task line --cloud-watch-log-group-arn "arn:aws:logs:${REGION}:${ACCOUNT}:log-group:/datasync/${DST_DIR}/" & LogLevel=BASIC
+
+TASK_ARN=$(aws datasync create-task --source-location-arn "${SRC_LOCATION_ID}" --destination-location-arn "${DST_LOCATION_ID}" --name ${SRC_VOLUME} --options VerifyMode=ONLY_FILES_TRANSFERRED,OverwriteMode=ALWAYS,Atime=BEST_EFFORT,Mtime=PRESERVE,Uid=INT_VALUE,Gid=INT_VALUE,PreserveDevices=NONE,PosixPermissions=PRESERVE,PreserveDeletedFiles=REMOVE,TaskQueueing=ENABLED,TransferMode=CHANGED,BytesPerSecond=-1 | grep TaskArn | awk '{print $2}' | sed 's/"//g')
+
+
+echo "TASK_ARN = ${TASK_ARN}"
+
+###############################################################################
+## 5. Execution of a task (initiates the 1st time data transfer)
+###############################################################################
+
+aws datasync start-task-execution --task-arn "${TASK_ARN}"
+
+
+
+echo -e "\n\n"
+echo -e "      The task execution was sucessfull,Please Monitor the task status using DataSync console or the below command in intervals
+
+#################################################################################################################################################
+#                                                                                                                                               #
+#                       aws datasync describe-task --task-arn ${TASK_ARN} |grep Status                                          #
+#                                                                                                                                               #
+#################################################################################################################################################"
